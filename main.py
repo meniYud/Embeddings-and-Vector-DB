@@ -10,6 +10,7 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_core.documents import Document
 
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
+index_name = os.getenv("PINECONE_INDEX_NAME")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 
@@ -22,11 +23,16 @@ def load_documents():
 def split_documents(docs: List[Document]):
     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
     chunks = text_splitter.split_documents(docs)
-    print(chunks)
-    
-    
+    print(f"Created {len(chunks)} chunks")
+    return chunks
+
+def embed_documents(chunks: List[Document]):
+    embeddings = OpenAIEmbeddings(api_key=openai_api_key)
+    vectorstore = PineconeVectorStore.from_documents(documents=chunks, embedding=embeddings, index_name=index_name)
+    return vectorstore
 
 if __name__ == "__main__":
     print("Hello from embeddings-and-vector-db!")
     docs = load_documents()
-    split_documents(docs)
+    chunks = split_documents(docs)
+    vectorstore = embed_documents(chunks)
