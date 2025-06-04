@@ -1,13 +1,15 @@
 import os
 from typing import List
 from dotenv import load_dotenv
+from templates import RETRIEVAL_QA_CHAT_TEMPLATE
 
 load_dotenv()
 
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from langchain_pinecone import PineconeVectorStore
-from langchain import hub
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
 
@@ -15,37 +17,44 @@ pinecone_api_key = os.getenv("PINECONE_API_KEY")
 index_name = os.getenv("PINECONE_INDEX_NAME")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-
+def format_documents(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
 
 def main():
-    print("Hello from retrieval.py")
+    print("Hello from lcel-retrieval.py")
     embedding = OpenAIEmbeddings(api_key=openai_api_key)
     llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
 
+    query = "What is AlphaEvolve?"
+    
     vectorstore = PineconeVectorStore(
         index_name=index_name,
         embedding=embedding,
     )
 
-    retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
-    combine_docs_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
-
-    retrieval_qa_chain = create_retrieval_chain(
-        retriever=vectorstore.as_retriever(),
-        combine_docs_chain=combine_docs_chain,
+    custom_rag_prompt = PromptTemplate.from_template(
+        template=RETRIEVAL_QA_CHAT_TEMPLATE
     )
 
-    result = retrieval_qa_chain.invoke(input={"input": "What is AlphaEvolve?"})
-    print(result["answer"])
+    rag_chain = (
+        {"context": vectorstore.as_retriever() | format_documents, "question": RunnablePassthrough()}
+        | custom_rag_prompt
+        | llm
+        | StrOutputParser()
+    )
+
+
+    result = rag_chain.invoke(query)
+    print(result)
     
     # A:
-    # AlphaEvolve is an AI system introduced by Google DeepMind in 2025 that demonstrates asynchronous intelligence,
-    # characterized by the effective coordination of cognitive processes operating at different temporal speeds.
-    # It achieved significant breakthroughs, including improvements to matrix multiplication algorithms,
-    # discoveries in mathematical constructions, and optimization of critical infrastructure systems.
-    # Instead of relying on revolutionary new technologies,
-    # AlphaEvolve's intelligence emerges from the collaboration of various processes functioning across different time scales,
-    # showcasing a new model for human-AI collaboration.
+    # AlphaEvolve is an AI system introduced by Google DeepMind in 2025 that achieved significant advancements in various fields,
+    # including mathematics and infrastructure optimization, by employing asynchronous intelligence.
+    # It operates through the coordination of cognitive processes that function at different temporal scales,
+    # demonstrating a new model for human-AI collaboration.
+    # This approach emphasizes the elegance of combining different cognitive specialties rather than relying solely on
+    # powerful individual components.
+    # Thanks for asking!
     
     
     
@@ -53,6 +62,7 @@ if __name__ == "__main__":
     main()
 
 
+# without augmentation:
 # Q:
 # query = "What is AlphaEvolve?"
 # llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)

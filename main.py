@@ -1,6 +1,6 @@
-
 import ingestion
 import retrieval
+import lcel_retrieval
 
 
 
@@ -10,6 +10,7 @@ def main(ingest: bool = False, retrieve: bool = False):
 
     if retrieve:
         retrieval.main()
+        # lcel_retrieval.main()
 
 if __name__ == "__main__":
     print("Hello from embeddings-and-vector-db!")
