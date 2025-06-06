@@ -17,7 +17,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 
 
 
-def main():
+def main(query: str):
     print("Hello from retrieval.py")
     embedding = OpenAIEmbeddings(api_key=openai_api_key)
     llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
@@ -35,10 +35,16 @@ def main():
         combine_docs_chain=combine_docs_chain,
     )
 
-    result = retrieval_qa_chain.invoke(input={"input": "What is AlphaEvolve?"})
-    print(result["answer"])
+    result = retrieval_qa_chain.invoke(input={"input": query})
+
+    new_result = {
+        "query": result["input"],
+        "result": result["answer"],
+        "source_documents": result["context"],
+    }
+    return new_result
     
-    # A:
+    # A: (result["answer"])
     # AlphaEvolve is an AI system introduced by Google DeepMind in 2025 that demonstrates asynchronous intelligence,
     # characterized by the effective coordination of cognitive processes operating at different temporal speeds.
     # It achieved significant breakthroughs, including improvements to matrix multiplication algorithms,
@@ -50,7 +56,7 @@ def main():
     
     
 if __name__ == "__main__":
-    main()
+    main(query="What is AlphaEvolve?")
 
 
 # Q:
