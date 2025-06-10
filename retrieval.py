@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Tuple
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,6 +10,7 @@ from langchain_pinecone import PineconeVectorStore
 from langchain import hub
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.retrieval import create_retrieval_chain
+from langchain.chains.history_aware_retriever import create_history_aware_retriever
 
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
 index_name = os.getenv("PINECONE_INDEX_NAME")
@@ -17,8 +18,8 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 
 
 
-def main(query: str):
-    print("Hello from retrieval.py")
+def main(query: str, chat_history: List[dict[str, str]]):
+    print(f"started retrieval for the query: {query} with {'empty' if not chat_history else 'non-empty'} chat history")
     embedding = OpenAIEmbeddings(api_key=openai_api_key)
     llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key)
 
@@ -30,12 +31,19 @@ def main(query: str):
     retrieval_qa_chat_prompt = hub.pull("langchain-ai/retrieval-qa-chat")
     combine_docs_chain = create_stuff_documents_chain(llm, retrieval_qa_chat_prompt)
 
-    retrieval_qa_chain = create_retrieval_chain(
+    rephrased_query = hub.pull("langchain-ai/chat-langchain-rephrase")
+    history_aware_retriever = create_history_aware_retriever(
         retriever=vectorstore.as_retriever(),
+        llm=llm,
+        prompt=rephrased_query,
+    )
+
+    retrieval_qa_chain = create_retrieval_chain(
+        retriever=history_aware_retriever,
         combine_docs_chain=combine_docs_chain,
     )
 
-    result = retrieval_qa_chain.invoke(input={"input": query})
+    result = retrieval_qa_chain.invoke(input={"input": query, "chat_history": chat_history})
 
     new_result = {
         "query": result["input"],
